@@ -21,6 +21,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -51,6 +52,68 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
     /*-------------------------------------------------------------------------*/
     /*                Metodos privados                                         */
     /*-------------------------------------------------------------------------*/
+    private String _getAuthorization() throws APIManagementException {
+        final StringBuilder result = new StringBuilder();
+        BufferedReader      reader = null;
+
+        log.info(_NAME + "._getAuthorization()");
+
+        final String              accessTokenEndpoint = KeycloakClientConstants.Properties2.ACCESS_TOKEN_ENDPOINT;
+        final CloseableHttpClient httpClient          = HttpClientBuilder.create().build();
+
+        try
+        {
+            final StringBuilder payload = new StringBuilder();
+            final HttpPost      post    = new HttpPost(accessTokenEndpoint);
+
+            payload.append("username=").append (KeycloakClientConstants.Properties2.USERNAME);
+            payload.append("&password=").append(KeycloakClientConstants.Properties2.PASSWORD);
+            payload.append("&grant_type=password");
+            payload.append("&client_id=").append    (KeycloakClientConstants.Properties2.CLIENT_ID);
+            payload.append("&client_secret=").append(KeycloakClientConstants.Properties2.CLIENT_SECRET);
+
+            post.setEntity(new StringEntity(payload.toString(), KeycloakClientConstants.UTF_8));
+            post.setHeader(KeycloakClientConstants.HTTP_HEADER_CONTENT_TYPE, KeycloakClientConstants.CT_FORM_URL_ENCODED);
+
+            final HttpResponse response   = httpClient.execute(post);
+            final HttpEntity   entity     = response.getEntity();
+            int                statusCode = response.getStatusLine().getStatusCode();
+
+            log.info(_NAME + " response: " + response.toString());
+
+            if (entity == null)
+            {
+                _handleException(_NAME + " ERROR leyendo respuesta del servidor OAuth: " + String.valueOf(response));
+            }
+
+            reader = new BufferedReader(new InputStreamReader(entity.getContent(), KeycloakClientConstants.UTF_8));
+
+            if (statusCode == HttpStatus.SC_OK)
+            {
+                final JSONObject jsonResponse = _getParsedObjectByReader(reader);
+                log.info(_NAME + " jsonResponse: " + jsonResponse.toJSONString());
+
+                final String access_token = (String) jsonResponse.get(KeycloakClientConstants.TOKEN_ACCESS_TOKEN);
+
+                result.append(KeycloakClientConstants.AUTHENTICATION_BEARER).append(" ").append(access_token);
+
+                return result.toString();
+            }
+            else
+            {
+                _handleException(_NAME + " ERROR en la respuesta JSON: " + response.toString());
+            }
+        }
+        catch (ParseException e) {_handleException(_NAME + " ERROR en la respuesta JSON!!", e);}
+        catch (IOException e)    {_handleException(_NAME + " ERROR solicitando token de acceso!!", e);}
+        finally
+        {
+            _closeResources(reader, httpClient);
+        }
+
+        return null;
+    }
+
     /**
      *
      * @param reader
@@ -95,9 +158,9 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
     private String _getCredentials() {
         final StringBuilder result = new StringBuilder();
 
-        result.append(configuration.getParameter(KeycloakClientConstants.Properties.CLIENT_ID));
+        result.append(KeycloakClientConstants.Properties2.CLIENT_ID);
         result.append(":");
-        result.append(configuration.getParameter(KeycloakClientConstants.Properties.CLIENT_SECRET));
+        result.append(KeycloakClientConstants.Properties2.CLIENT_SECRET);
 
         return Base64.getEncoder().encodeToString(result.toString().getBytes());
     }
@@ -229,14 +292,14 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
      */
     @Override
     public OAuthApplicationInfo createApplication(OAuthAppRequest req) throws APIManagementException {
-        BufferedReader reader   = null;
+        BufferedReader reader = null;
 
         log.info(_NAME + ".createApplication()");
 
         final OAuthApplicationInfo oAuthApplicationInfo = req.getOAuthApplicationInfo();
         final String[]             scope                = ((String) oAuthApplicationInfo.getParameter(KeycloakClientConstants.TOKEN_SCOPE)).split(",");
         final Object               tokenGrantType       =           oAuthApplicationInfo.getParameter(KeycloakClientConstants.TOKEN_GRANT_TYPE);
-        final String               registrationEndpoint = configuration.getParameter(KeycloakClientConstants.Properties.CLIENT_REG_ENDPOINT);
+        final String               registrationEndpoint = KeycloakClientConstants.Properties2.CLIENT_REG_ENDPOINT;
 
         final CloseableHttpClient httpClient = HttpClientBuilder.create().build();
 
@@ -248,8 +311,8 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
 
             post.setEntity(new StringEntity(payload, KeycloakClientConstants.UTF_8));
 
-            post.setHeader(KeycloakClientConstants.HTTP_HEADER_CONTENT_TYPE, KeycloakClientConstants.APPLICATION_JSON);
-            post.setHeader(KeycloakClientConstants.AUTHORIZATION,            KeycloakClientConstants.AUTHENTICATION_BASIC + _getCredentials());
+            post.setHeader(KeycloakClientConstants.HTTP_HEADER_CONTENT_TYPE, KeycloakClientConstants.CT_APPLICATION_JSON);
+            post.setHeader(KeycloakClientConstants.AUTHORIZATION,            _getAuthorization());
 
             final HttpResponse response   = httpClient.execute(post);
             final HttpEntity   entity     = response.getEntity();
@@ -285,14 +348,8 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
                 _handleException(_NAME + " ERROR registrando un nuevo cliente en el servidor OAuth. Response: " + jsonResponse.toJSONString());
             }
         }
-        catch (ParseException e)
-        {
-            _handleException(_NAME + " ERROR parseando la respuesta JSON!!", e);
-        }
-        catch (IOException e)
-        {
-            _handleException(_NAME + " ERROR enviando peticion al servidor OAuth!!", e);
-        }
+        catch (ParseException e) {_handleException(_NAME + " ERROR parseando la respuesta JSON!!", e);}
+        catch (IOException e)    {_handleException(_NAME + " ERROR enviando peticion al servidor OAuth!!", e);}
         finally
         {
             _closeResources(reader, httpClient);
@@ -306,24 +363,83 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
      * @throws APIManagementException
      */
     @Override
-    public void loadConfiguration(KeyManagerConfiguration kmc) throws APIManagementException {
+    public void loadConfiguration(final KeyManagerConfiguration kmc) throws APIManagementException {
         this.configuration = kmc;
     }
 
     /**
      * Get Scopes of the APIs by API Ids
-     * @param string
+     * @param x
      * @return
      * @throws APIManagementException
      */
     @Override
-    public Map<String, Set<Scope>> getScopesForAPIS(String string) throws APIManagementException {
+    public Map<String, Set<Scope>> getScopesForAPIS(final String x) throws APIManagementException {
         return new HashMap<>();
     }
 
+    /**
+     * Obtiene la informacion de una aplicacion a partir de su clientId.
+     * curl -k -X GET
+     *      -H "Authorization: Bearer XXXXX"
+     *      https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/openid-connect/clientId
+     *
+     * @param clientId
+     * @return
+     * @throws APIManagementException
+     */
     @Override
-    public OAuthApplicationInfo retrieveApplication(String string) throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public OAuthApplicationInfo retrieveApplication(String clientId) throws APIManagementException {
+        BufferedReader reader = null;
+
+        log.info(_NAME + ".retrieveApplication(" + clientId + ")");
+
+        final String              clientInfoEndpoint = KeycloakClientConstants.Properties2.CLIENT_INFO_ENDPOINT;
+        final CloseableHttpClient httpClient         = HttpClientBuilder.create().build();
+
+        try
+        {
+            final HttpGet request = new HttpGet(clientInfoEndpoint + KeycloakClientConstants.URL_SEPARATOR + clientId);
+
+            request.addHeader(KeycloakClientConstants.AUTHORIZATION, _getAuthorization());
+
+            final HttpResponse response   = httpClient.execute(request);
+            final HttpEntity   entity     = response.getEntity();
+            int                statusCode = response.getStatusLine().getStatusCode();
+
+            log.info(_NAME + " response: " + response.toString());
+
+            if (entity == null)
+            {
+                _handleException(_NAME + " ERROR leyendo respuesta del servidor OAuth (" + clientId + "): " + String.valueOf(response));
+            }
+
+            reader = new BufferedReader(new InputStreamReader(entity.getContent(), KeycloakClientConstants.UTF_8));
+
+            final JSONObject jsonResponse = _getParsedObjectByReader(reader);
+            log.info(_NAME + " jsonResponse: " + jsonResponse.toJSONString());
+            if (jsonResponse == null)
+            {
+                _handleException(_NAME + " ERROR parseando la respuesta JSON!!");
+            }
+
+            if (statusCode == HttpStatus.SC_OK)
+            {
+                return _createOAuthAppInfoFromResponse(jsonResponse);
+            }
+            else
+            {
+                _handleException(String.format("Error occured while retrieving client for the Consumer Key %s", clientId));
+            }
+        }
+        catch (ParseException e) {_handleException(_NAME + " ERROR parseando la respuesta JSON (" + clientId + ")!!", e);}
+        catch (IOException e)    {_handleException(_NAME + " ERROR recuperando info de la aplicacion" + clientId + "!!", e);}
+        finally
+        {
+            _closeResources(reader, httpClient);
+        }
+
+        return null;
     }
 
     @Override

@@ -36,6 +36,7 @@ import org.wso2.carbon.apimgt.api.model.AccessTokenRequest;
 import org.wso2.carbon.apimgt.api.model.KeyManagerConfiguration;
 import org.wso2.carbon.apimgt.api.model.OAuthAppRequest;
 import org.wso2.carbon.apimgt.api.model.OAuthApplicationInfo;
+import org.wso2.carbon.apimgt.api.model.Scope;
 
 /**
  *
@@ -299,6 +300,32 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
         return null;
     }
 
+    /**
+     *
+     * @param kmc
+     * @throws APIManagementException
+     */
+    @Override
+    public void loadConfiguration(KeyManagerConfiguration kmc) throws APIManagementException {
+        this.configuration = kmc;
+    }
+
+    /**
+     * Get Scopes of the APIs by API Ids
+     * @param string
+     * @return
+     * @throws APIManagementException
+     */
+    @Override
+    public Map<String, Set<Scope>> getScopesForAPIS(String string) throws APIManagementException {
+        return new HashMap<>();
+    }
+
+    @Override
+    public OAuthApplicationInfo retrieveApplication(String string) throws APIManagementException {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
     @Override
     public OAuthApplicationInfo updateApplication(OAuthAppRequest oaar) throws APIManagementException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
@@ -310,12 +337,12 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
     }
 
     @Override
-    public OAuthApplicationInfo retrieveApplication(String string) throws APIManagementException {
+    public AccessTokenInfo getNewApplicationAccessToken(AccessTokenRequest atr) throws APIManagementException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
-    public AccessTokenInfo getNewApplicationAccessToken(AccessTokenRequest atr) throws APIManagementException {
+    public String getNewApplicationConsumerSecret(AccessTokenRequest atr) throws APIManagementException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
@@ -337,16 +364,6 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
     @Override
     public OAuthApplicationInfo mapOAuthApplication(OAuthAppRequest oaar) throws APIManagementException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    /**
-     *
-     * @param kmc
-     * @throws APIManagementException
-     */
-    @Override
-    public void loadConfiguration(KeyManagerConfiguration kmc) throws APIManagementException {
-        this.configuration = kmc;
     }
 
     @Override
@@ -383,5 +400,4 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
     public AccessTokenInfo getAccessTokenByConsumerKey(String string) throws APIManagementException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
-
 }

@@ -182,11 +182,11 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
      * @param x Mapa con los atributos devueltos por Keycloak
      * @return
      */
-    private OAuthApplicationInfo _createOAuthAppInfoFromResponse(final Map x) {
+    private OAuthApplicationInfo _createOAuthAppInfoFromResponseOld(final Map x) {
         final OAuthApplicationInfo result     = new OAuthApplicationInfo();
         final String               clientName = (String) x.get(Constantes.KEYCLOAK.CLIENT_ID);
 
-        log.error(_NAME + "._createOAuthAppInfoFromResponse(" + x + ")");
+        log.error(_NAME + "._createOAuthAppInfoFromResponseOld(" + x + ")");
 
         result.setClientName  (clientName);
         result.setClientId    ((String) x.get(Constantes.KEYCLOAK.CLIENT_ID));
@@ -198,16 +198,47 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
             result.setCallBackURL((String) callbackUrl.toArray()[0]);
         }
 
-//        result.addParameter(Constantes.WSO2APIM.CLIENT_ID_ISSUED_AT,               x.get(Constantes.KEYCLOAK.CLIENT_ID_ISSUED_AT));
-//        result.addParameter(Constantes.WSO2APIM.CLIENT_SECRET_EXPIRES_AT,          x.get(Constantes.KEYCLOAK.CLIENT_SECRET_EXPIRES_AT));
-//        result.addParameter(Constantes.WSO2APIM.CLIENT_URI,                        x.get(Constantes.KEYCLOAK.CLIENT_URI));
-//        result.addParameter(Constantes.WSO2APIM.CLIENT_LOGO_URI,                   x.get(Constantes.KEYCLOAK.CLIENT_LOGO_URI));
-//        result.addParameter(Constantes.WSO2APIM.CLIENT_APPLICATION_TYPE,           x.get(Constantes.KEYCLOAK.CLIENT_APPLICATION_TYPE));
-//        result.addParameter(Constantes.WSO2APIM.CLIENT_POST_LOGOUT_REDIRECT_URIS,  x.get(Constantes.KEYCLOAK.CLIENT_POST_LOGOUT_REDIRECT_URIS));
-//        result.addParameter(Constantes.WSO2APIM.CLIENT_RESPONSE_TYPES,             x.get(Constantes.KEYCLOAK.CLIENT_RESPONSE_TYPES));
-//        result.addParameter(Constantes.WSO2APIM.CLIENT_GRANT_TYPES,                x.get(Constantes.KEYCLOAK.CLIENT_GRANT_TYPES));
-//        result.addParameter(Constantes.WSO2APIM.CLIENT_TOKEN_ENDPOINT_AUTH_METHOD, x.get(Constantes.KEYCLOAK.CLIENT_TOKEN_ENDPOINT_AUTH_METHOD));
-//        result.addParameter(Constantes.WSO2APIM.CLIENT_INITIATE_LOGIN_URI,         x.get(Constantes.KEYCLOAK.CLIENT_INITIATE_LOGIN_URI));
+        return result;
+    }
+
+    /**
+     * Convierte un tipo OAuthApplicationInfo a partir de la INFO recibida de Keycloak.
+     *
+     * @param x Mapa con los atributos devueltos por Keycloak
+     * @return
+     */
+    private OAuthApplicationInfo _createOAuthAppInfoFromResponse(final Map x) {
+        final OAuthApplicationInfo result   = new OAuthApplicationInfo();
+        final String               clientId = (String) x.get(Constantes.KEYCLOAK.OIDC_CLIENT_ID);
+
+        log.error(_NAME + "._createOAuthAppInfoFromResponse(" + x + ")");
+
+        result.setClientName  (clientId);
+        result.setClientId    (clientId);
+        result.setClientSecret((String) x.get(Constantes.KEYCLOAK.OIDC_CLIENT_SECRET));
+
+        final JSONArray callbackUrl = (JSONArray) x.get(Constantes.KEYCLOAK.OIDC_REDIRECT_URIS);
+        if (callbackUrl != null)
+        {
+            result.setCallBackURL((String) callbackUrl.toArray()[0]);
+        }
+
+        final JSONArray grantTypes = (JSONArray) x.get(Constantes.KEYCLOAK.OIDC_GRANT_TYPES);
+        final StringBuilder gt = new StringBuilder();
+        for (Object type : grantTypes)
+        {
+            gt.append(type).append(Constantes.SPACE);
+        }
+        result.addParameter(Constantes.WSO2APIM.CLIENT_GRANT_TYPES, gt.toString());
+
+        //result.addParameter(Constantes.WSO2APIM.CLIENT_ID_ISSUED_AT,               x.get(Constantes.KEYCLOAK.CLIENT_ID_ISSUED_AT));
+        result.addParameter(Constantes.WSO2APIM.CLIENT_SECRET_EXPIRES_AT,          x.get(Constantes.KEYCLOAK.OIDC_CLIENT_SECRET_EXPIRES_AT));
+        //result.addParameter(Constantes.WSO2APIM.CLIENT_URI,                        x.get(Constantes.KEYCLOAK.CLIENT_URI));
+        //result.addParameter(Constantes.WSO2APIM.CLIENT_LOGO_URI,                   x.get(Constantes.KEYCLOAK.CLIENT_LOGO_URI));
+        //result.addParameter(Constantes.WSO2APIM.CLIENT_APPLICATION_TYPE,           x.get(Constantes.KEYCLOAK.CLIENT_APPLICATION_TYPE));
+        //result.addParameter(Constantes.WSO2APIM.CLIENT_POST_LOGOUT_REDIRECT_URIS,  x.get(Constantes.KEYCLOAK.CLIENT_POST_LOGOUT_REDIRECT_URIS));
+        result.addParameter(Constantes.WSO2APIM.CLIENT_TOKEN_ENDPOINT_AUTH_METHOD, x.get(Constantes.KEYCLOAK.OIDC_TOKEN_ENDPOINT_AUTH_METHOD));
+        //result.addParameter(Constantes.WSO2APIM.CLIENT_INITIATE_LOGIN_URI,         x.get(Constantes.KEYCLOAK.CLIENT_INITIATE_LOGIN_URI));
 
         return result;
     }
@@ -295,7 +326,7 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
      * @throws APIManagementException
      */
     @Override
-    public OAuthApplicationInfo createApplication(OAuthAppRequest req) throws APIManagementException {
+    public OAuthApplicationInfo createApplication(final OAuthAppRequest req) throws APIManagementException {
         BufferedReader reader = null;
 
         log.warn(_NAME + ".createApplication()");
@@ -338,7 +369,7 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
 
             if (HttpStatus.SC_CREATED == statusCode)
             {
-                final OAuthApplicationInfo result = _createOAuthAppInfoFromResponse(jsonResponse);
+                final OAuthApplicationInfo result = _createOAuthAppInfoFromResponseOld(jsonResponse);
 
                 result.addParameter(Constantes.WSO2APIM.TOKEN_SCOPE,      scope);
                 result.addParameter(Constantes.WSO2APIM.TOKEN_GRANT_TYPE, tokenGrantType);
@@ -391,10 +422,10 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
      * @throws APIManagementException
      */
     @Override
-    public OAuthApplicationInfo retrieveApplication(String clientId) throws APIManagementException {
+    public OAuthApplicationInfo retrieveApplication(final String clientId) throws APIManagementException {
         BufferedReader reader = null;
 
-        log.info(_NAME + ".retrieveApplication(" + clientId + ")");
+        log.error(_NAME + ".retrieveApplication(" + clientId + ")");
 
         final String              clientInfoEndpoint = Constantes.Properties2.CLIENT_INFO_ENDPOINT;
         final CloseableHttpClient httpClient         = HttpClientBuilder.create().build();
@@ -409,7 +440,7 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
             final HttpEntity   entity     = response.getEntity();
             int                statusCode = response.getStatusLine().getStatusCode();
 
-            log.info(_NAME + " response: " + response.toString());
+            log.error(_NAME + " response: " + response.toString());
 
             if (entity == null)
             {
@@ -419,11 +450,12 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
             reader = new BufferedReader(new InputStreamReader(entity.getContent(), Constantes.UTF_8));
 
             final JSONObject jsonResponse = _getParsedObjectByReader(reader);
-            log.info(_NAME + " jsonResponse: " + jsonResponse.toJSONString());
             if (jsonResponse == null)
             {
                 _handleException(_NAME + " ERROR parseando la respuesta JSON!!");
             }
+
+            log.error(_NAME + " jsonResponse: " + jsonResponse.toJSONString());
 
             if (statusCode == HttpStatus.SC_OK)
             {
@@ -443,6 +475,24 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
 
         return null;
     }
+
+    /**
+     * Provides details of the Access Token that is displayed on the Store.
+     *
+     * @param clientId
+     * @return
+     * @throws APIManagementException
+     */
+    @Override
+    public AccessTokenInfo getAccessTokenByConsumerKey(final String clientId) throws APIManagementException {
+        final AccessTokenInfo result = null;
+
+        log.error(_NAME + ".getAccessTokenByConsumerKey(" + clientId + ")");
+
+        return null;
+    }
+
+
 
     @Override
     public OAuthApplicationInfo updateApplication(OAuthAppRequest oaar) throws APIManagementException {
@@ -511,11 +561,6 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
 
     @Override
     public Set<String> getActiveTokensByConsumerKey(String string) throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public AccessTokenInfo getAccessTokenByConsumerKey(String string) throws APIManagementException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 }

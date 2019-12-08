@@ -16,6 +16,7 @@ public final class Constantes {
     public static final String HTTP_HEADER_CONTENT_TYPE          = "Content-Type";
     public static final String HTTP_HEADER_CT_APPLICATION_JSON   = "application/json";
     public static final String HTTP_HEADER_CT_FORM_URL_ENCODED   = "application/x-www-form-urlencoded";
+    public static final String SPACE                             = " ";
     public static final String UTF_8                             = "UTF-8";
     public static final String URL_SEPARATOR                     = "/";
 
@@ -23,10 +24,18 @@ public final class Constantes {
      * Atributos especificos de Keycloak
      */
     public static final class KEYCLOAK {
-        public static final String ACCESS_TOKEN  = "access_token";
-        public static final String CLIENT_ID     = "clientId";
-        public static final String CLIENT_SECRET = "secret";
-        public static final String REDIRECT_URIS = "redirectUris";
+        public static final String ACCESS_TOKEN                    = "access_token";
+        public static final String CLIENT_ID                       = "clientId";
+        public static final String CLIENT_SECRET                   = "secret";
+        public static final String REDIRECT_URIS                   = "redirectUris";
+
+        public static final String OIDC_CLIENT_ID                  = "client_id";
+        public static final String OIDC_CLIENT_SECRET              = "client_secret";
+        public static final String OIDC_CLIENT_SECRET_EXPIRES_AT   = "client_secret_expires_at";
+        public static final String OIDC_GRANT_TYPES                = "grant_types";
+        public static final String OIDC_REDIRECT_URIS              = "redirect_uris";
+        public static final String OIDC_RESPONSE_TYPES             = "response_types";
+        public static final String OIDC_TOKEN_ENDPOINT_AUTH_METHOD = "token_endpoint_auth_method";
     }
 
     /**
@@ -67,6 +76,6 @@ public final class Constantes {
         public static final String USERNAME              = "admin";
         public static final String PASSWORD              = "password";
         public static final String CLIENT_REG_ENDPOINT   = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/default";
-        public static final String CLIENT_INFO_ENDPOINT  = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/openid-connect/myclient";
+        public static final String CLIENT_INFO_ENDPOINT  = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/openid-connect";
     }
 }

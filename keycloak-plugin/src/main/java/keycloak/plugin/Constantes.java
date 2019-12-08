@@ -62,24 +62,16 @@ public final class Constantes {
     /**
      *
      */
-    public static class Properties {
-//        public static final String ACCESS_TOKEN_ENDPOINT = "keycloak_accessTokenEndpoint";
-//        public static final String CLIENT_ID             = "keycloak.apim.clientId";
-//        public static final String CLIENT_SECRET         = "keycloak.apim.secret";
-//        public static final String USERNAME              = "keycloak.apim.username";
-//        public static final String PASSWORD              = "keycloak.apim.password";
-//        public static final String CLIENT_REG_ENDPOINT   = "keycloak.registrationEndpoint";
-//        public static final String CLIENT_INFO_ENDPOINT  = "keycloak.clientInfoEndpoint";
-    }
-
     public static class Properties2 {
-        public static final String ACCESS_TOKEN_ENDPOINT = "https://idp.keycloak.local:8443/auth/realms/master/protocol/openid-connect/token";
-        public static final String CLIENT_ID             = "wso2apim";
-        public static final String CLIENT_SECRET         = "3f5cbc5a-e70e-4e24-944b-256f0f9d32c7";
-        public static final String USERNAME              = "admin";
-        public static final String PASSWORD              = "password";
-        public static final String CLIENT_REG_ENDPOINT   = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/default";
-        public static final String KEYCLOAK_ENDPOINT     = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/openid-connect";
+        public static final String ACCESS_TOKEN_ENDPOINT    = "https://idp.keycloak.local:8443/auth/realms/master/protocol/openid-connect/token";
+        public static final String CLIENT_ID                = "wso2apim";
+        public static final String CLIENT_SECRET            = "3f5cbc5a-e70e-4e24-944b-256f0f9d32c7";
+        public static final String USERNAME                 = "admin";
+        public static final String PASSWORD                 = "password";
+        public static final String CLIENT_REG_ENDPOINT      = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/default";
+        public static final String KEYCLOAK_ENDPOINT        = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/openid-connect";
+        public static final String KEYCLOAK_TOKEN_ENDPOINT  = "https://idp.keycloak.local:8443/auth/realms/master/protocol/openid-connect/token";
+        public static final String KEYCLOAK_LOGOUT_ENDPOINT = "https://idp.keycloak.local:8443/auth/realms/master/protocol/openid-connect/logout";
     }
 
     public static final String view(final OAuthApplicationInfo x) {

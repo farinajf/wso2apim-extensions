@@ -8,6 +8,9 @@ package keycloak.plugin;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -21,6 +24,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
@@ -28,6 +33,7 @@ import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.message.BasicNameValuePair;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -40,6 +46,7 @@ import org.wso2.carbon.apimgt.api.model.KeyManagerConfiguration;
 import org.wso2.carbon.apimgt.api.model.OAuthAppRequest;
 import org.wso2.carbon.apimgt.api.model.OAuthApplicationInfo;
 import org.wso2.carbon.apimgt.api.model.Scope;
+import org.wso2.carbon.apimgt.impl.APIConstants;
 
 /**
  *
@@ -72,6 +79,28 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
         result.addParameter(Constantes.WSO2APIM.CLIENT_INITIATE_LOGIN_URI,         inicial.getParameter(Constantes.WSO2APIM.CLIENT_INITIATE_LOGIN_URI));
     }
 
+    /**
+     * Returns a space separate string from list of the contents in the string array.
+     *
+     * @param x an array of strings.
+     * @return space separated string.
+     */
+    private static String _convertToString(final String[] x) {
+        if (x == null) return null;
+
+        final StringBuilder sb      = new StringBuilder();
+        final List<String>  strList = Arrays.asList(x);
+
+        for (String s : strList) sb.append(s).append(" ");
+
+        return sb.toString().trim();
+    }
+
+    /**
+     *
+     * @return
+     * @throws APIManagementException
+     */
     private String _getAuthorization() throws APIManagementException {
         final StringBuilder result = new StringBuilder();
         BufferedReader      reader = null;
@@ -173,16 +202,24 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
 
     /**
      *
+     * @param clientId
+     * @param clientSecret
      * @return
+     * @throws APIManagementException
      */
-    private String _getCredentials() {
+    private String _getCredentials(final String clientId, final String clientSecret) throws APIManagementException {
         final StringBuilder result = new StringBuilder();
 
-        result.append(Constantes.Properties2.CLIENT_ID);
-        result.append(":");
-        result.append(Constantes.Properties2.CLIENT_SECRET);
+        result.append(clientId).append(":").append(clientSecret);
 
-        return Base64.getEncoder().encodeToString(result.toString().getBytes());
+        try
+        {
+            return Base64.getEncoder().encodeToString(result.toString().getBytes(Constantes.UTF_8));
+        }
+        catch(UnsupportedEncodingException e)
+        {
+            throw new APIManagementException(_NAME + " ERROR metodo de encoding no soportado!!", e);
+        }
     }
 
     /**
@@ -194,6 +231,104 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
      */
     private JSONObject _getParsedObjectByReader(final BufferedReader reader) throws ParseException, IOException {
         return (reader != null) ? (JSONObject) new JSONParser().parse(reader) : null;
+    }
+
+    /**
+     * Update the access token info after getting new access token.
+     *
+     * @param result    Token info need to be updated.
+     * @param responseJSON AccessTokenInfo
+     * @return AccessTokenInfo
+     */
+    private AccessTokenInfo _updateTokenInfo(final AccessTokenInfo result, final JSONObject responseJSON) {
+        //1.- Access token
+        result.setAccessToken((String) responseJSON.get("access_token"));
+
+        //2.- Expires in
+        final Long expireTime = (Long) responseJSON.get("expires_in");
+        if (expireTime == null)
+        {
+            result.setTokenValid(false);
+            result.setErrorcode (APIConstants.KeyValidationStatus.API_AUTH_INVALID_CREDENTIALS);
+            return result;
+        }
+        result.setValidityPeriod(expireTime * 1000);
+
+        //3.- Scopes
+        final String tokenScopes = (String) responseJSON.get("scope");
+        if (StringUtils.isNotEmpty(tokenScopes)) result.setScope(tokenScopes.split("\\s+"));
+
+        //4.- Token valid
+        result.setTokenValid(Boolean.parseBoolean("active"));
+        result.setTokenState("active");
+
+        //5.- Fin
+        return result;
+    }
+
+    /**
+     * Revokes an access token.
+     *
+     * @param clientId     clientId of the oauth client
+     * @param clientSecret clientSecret of the oauth client
+     * @param accessToken  token being revoked
+     * @throws APIManagementException This is the custom exception class for API management.
+     */
+    private void _revokeAccessToken(final String clientId, final String clientSecret, final String accessToken) throws APIManagementException {
+        //TODO
+    }
+
+    /**
+     * Gets an access token.
+     *
+     * @param clientId     clientId of the oauth client.
+     * @param clientSecret clientSecret of the oauth client.
+     * @param parameters   list of request parameters.
+     * @return an {@code JSONObject}
+     * @throws APIManagementException This is the custom exception class for API management.
+     */
+    private JSONObject _getAccessToken(final String clientId, final String clientSecret, final List<NameValuePair> parameters) throws APIManagementException {
+        final CloseableHttpClient httpClient = HttpClientBuilder.create().build();
+        BufferedReader            reader     = null;
+
+        try
+        {
+            final HttpPost post = new HttpPost(Constantes.Properties2.KEYCLOAK_TOKEN_ENDPOINT);
+
+            post.setEntity(new UrlEncodedFormEntity(parameters));
+            post.setHeader(Constantes.HTTP_HEADER_AUTH, Constantes.HTTP_HEADER_AUTH_BASIC + _getCredentials(clientId, clientSecret));
+
+            final HttpResponse response   = httpClient.execute(post);
+            final HttpEntity   entity     = response.getEntity();
+            int                statusCode = response.getStatusLine().getStatusCode();
+
+            if (entity == null)
+            {
+                _handleException(_NAME + " ERROR leyendo respuesta del servidor OAuth:" + String.valueOf(response));
+            }
+
+            reader = new BufferedReader(new InputStreamReader(entity.getContent(), Constantes.UTF_8));
+
+            final JSONObject result = _getParsedObjectByReader(reader);
+
+            if (HttpStatus.SC_OK == statusCode)
+            {
+                return result;
+            }
+            else
+            {
+                _handleException(_NAME + " ERROR obteniendo un token de acceso para: " + clientId);
+            }
+        }
+        catch (UnsupportedEncodingException e) {_handleException(_NAME + " ERROR encoding no soportado!!", e);}
+        catch (ParseException               e) {_handleException(_NAME + " ERROR parseando la respuesta JSON!!", e);}
+        catch (IOException                  e) {_handleException(_NAME + " ERROR enviando peticion al servidor OAuth!!", e);}
+        finally
+        {
+            _closeResources(reader, httpClient);
+        }
+
+        return null;
     }
 
     /**
@@ -672,24 +807,68 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
         log.error(_NAME + ".deleteMappedApplication(" + clientId + ")");
     }
 
+    /**
+     * Provides all the Active tokens issued against the provided Consumer Key.
+     *
+     * @param clientId
+     * @return
+     * @throws APIManagementException
+     */
+    @Override
+    public Set<String> getActiveTokensByConsumerKey(final String clientId) throws APIManagementException {
+        log.error(_NAME + ".getActiveTokensByConsumerKey(" + clientId + ")");
 
-
-
-
-
-
-
+        return Collections.emptySet();
+    }
 
     /**
      * Gets new access token and returns it in an AccessTokenInfo object.
      *
-     * @param atr Info of the token needed.
+     * @param x Info of the token needed.
      * @return AccessTokenInfo Info of the new token.
      * @throws APIManagementException This is the custom exception class for API management.
      */
     @Override
-    public AccessTokenInfo getNewApplicationAccessToken(final AccessTokenRequest atr) throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public AccessTokenInfo getNewApplicationAccessToken(final AccessTokenRequest x) throws APIManagementException {
+        final AccessTokenInfo result = new AccessTokenInfo();
+
+        log.error(_NAME + ".getNewApplicationAccessToken()");
+
+        //1.- Get info data
+        final String accessToken  = x.getTokenToRevoke();
+        final String clientId     = x.getClientId();
+        final String clientSecret = x.getClientSecret();
+
+        //2.- Revoke access token
+        if (StringUtils.isNotEmpty(accessToken)) _revokeAccessToken(clientId, clientSecret, accessToken);
+
+        //3.- Grant type
+        List<NameValuePair> parameters = new ArrayList<NameValuePair>();
+        String grantType = x.getGrantType();
+        if (grantType == null) grantType = "client_credentials";
+
+        parameters.add(new BasicNameValuePair("grant_type", (String) grantType));
+
+        //4.- Scopes
+        final String scopes = _convertToString(x.getScope());
+        if (StringUtils.isNotEmpty(scopes)) parameters.add(new BasicNameValuePair("scope", scopes));
+
+        //5.- Update info
+        JSONObject responseJSON = _getAccessToken(clientId, clientSecret, parameters);
+        if (responseJSON != null)
+        {
+            _updateTokenInfo(result, responseJSON);
+        }
+        else
+        {
+            result.setTokenValid(false);
+            result.setErrorcode(APIConstants.KeyValidationStatus.API_AUTH_INVALID_CREDENTIALS);
+
+            log.info(_NAME + "OAuth token validation failed for the Consumer Key " + clientId);
+        }
+
+        //7.- Fin
+        return result;
     }
 
 
@@ -739,11 +918,6 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
 
     @Override
     public void deleteRegisteredResourceByAPIId(String string) throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public Set<String> getActiveTokensByConsumerKey(String string) throws APIManagementException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 }

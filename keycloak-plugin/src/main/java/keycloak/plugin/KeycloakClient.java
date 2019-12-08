@@ -871,8 +871,92 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
         return result;
     }
 
+    /**
+     *
+     * @return
+     * @throws APIManagementException
+     */
+    @Override
+    public KeyManagerConfiguration getKeyManagerConfiguration() throws APIManagementException {
+        return configuration;
+    }
 
+    /**
+     *
+     * @param x
+     * @return
+     * @throws APIManagementException
+     */
+    @Override
+    public OAuthApplicationInfo buildFromJSON(final String x) throws APIManagementException {
+        log.error(_NAME + ".buildFromJSON(" + x + ")");
 
+        return null;
+    }
+
+    /**
+     *
+     * @param oaar
+     * @return
+     * @throws APIManagementException
+     */
+    @Override
+    public OAuthApplicationInfo mapOAuthApplication(final OAuthAppRequest oaar) throws APIManagementException {
+        log.error(_NAME + ".mapOAuthApplication()");
+
+        return oaar.getOAuthApplicationInfo();
+    }
+
+    /**
+     *
+     * @param api
+     * @param map
+     * @return
+     * @throws APIManagementException
+     */
+    @Override
+    public boolean registerNewResource(final API api, final Map map) throws APIManagementException {
+        log.error(_NAME + ".registerNewResource()");
+
+        return true;
+    }
+
+    /**
+     *
+     * @param x
+     * @return
+     * @throws APIManagementException
+     */
+    @Override
+    public Map getResourceByApiId(final String x) throws APIManagementException {
+        log.error(_NAME + ".getResourceByApiId(" + x + ")");
+
+        return null;
+    }
+
+    /**
+     *
+     * @param api
+     * @param map
+     * @return
+     * @throws APIManagementException
+     */
+    @Override
+    public boolean updateRegisteredResource(final API api, final Map map) throws APIManagementException {
+        log.error(_NAME + ".updateRegisteredResource()");
+
+        return true;
+    }
+
+    /**
+     *
+     * @param x
+     * @throws APIManagementException
+     */
+    @Override
+    public void deleteRegisteredResourceByAPIId(final String x) throws APIManagementException {
+        log.error(_NAME + ".deleteRegisteredResourceByAPIId(" + x + ")");
+    }
 
 
 
@@ -883,41 +967,6 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
 
     @Override
     public AccessTokenInfo getTokenMetaData(String string) throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public KeyManagerConfiguration getKeyManagerConfiguration() throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public OAuthApplicationInfo buildFromJSON(String string) throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public OAuthApplicationInfo mapOAuthApplication(OAuthAppRequest oaar) throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public boolean registerNewResource(API api, Map map) throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public Map getResourceByApiId(String string) throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public boolean updateRegisteredResource(API api, Map map) throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void deleteRegisteredResourceByAPIId(String string) throws APIManagementException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 }

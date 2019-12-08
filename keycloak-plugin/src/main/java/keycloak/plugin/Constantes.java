@@ -79,8 +79,7 @@ public final class Constantes {
         public static final String USERNAME              = "admin";
         public static final String PASSWORD              = "password";
         public static final String CLIENT_REG_ENDPOINT   = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/default";
-        public static final String CLIENT_INFO_ENDPOINT  = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/openid-connect";
-        public static final String CLIENT_PUT_ENDPOINT   = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/openid-connect";
+        public static final String KEYCLOAK_ENDPOINT     = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/openid-connect";
     }
 
     public static final String view(final OAuthApplicationInfo x) {

@@ -21,6 +21,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
@@ -487,7 +488,7 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
 
         try
         {
-            final HttpGet request = new HttpGet(Constantes.Properties2.CLIENT_INFO_ENDPOINT + Constantes.URL_SEPARATOR + clientId);
+            final HttpGet request = new HttpGet(Constantes.Properties2.KEYCLOAK_ENDPOINT + Constantes.URL_SEPARATOR + clientId);
 
             request.addHeader(Constantes.HTTP_HEADER_AUTH, _getAuthorization());
 
@@ -569,7 +570,7 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
         try
         {
             final String  payload = _createJsonPayloadFromOauthApplication(oAuthApplicationInfo);
-            final HttpPut put     = new HttpPut(Constantes.Properties2.CLIENT_PUT_ENDPOINT + Constantes.URL_SEPARATOR + clientId);
+            final HttpPut put     = new HttpPut(Constantes.Properties2.KEYCLOAK_ENDPOINT + Constantes.URL_SEPARATOR + clientId);
 
             put.setEntity(new StringEntity(payload, Constantes.UTF_8));
 
@@ -616,19 +617,85 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
         return null;
     }
 
-
-
-
-
+    /**
+     * Deletes OAuth Client from Authorization Server.
+     *
+     * @param clientId
+     * @throws APIManagementException
+     */
     @Override
-    public void deleteApplication(String string) throws APIManagementException {
+    public void deleteApplication(final String clientId) throws APIManagementException {
+        BufferedReader reader = null;
+
+        log.error(_NAME + ".deleteApplication(" + clientId + ")");
+
+        final CloseableHttpClient httpClient = HttpClientBuilder.create().build();
+
+        try
+        {
+            final HttpDelete delete = new HttpDelete(Constantes.Properties2.KEYCLOAK_ENDPOINT + Constantes.URL_SEPARATOR + clientId);
+
+            delete.addHeader(Constantes.HTTP_HEADER_AUTH, _getAuthorization());
+
+            final HttpResponse response   = httpClient.execute(delete);
+            final HttpEntity   entity     = response.getEntity();
+            int                statusCode = response.getStatusLine().getStatusCode();
+
+            log.error(_NAME + " response: " + response.toString());
+
+            if (statusCode != HttpStatus.SC_NO_CONTENT)
+            {
+                if (entity == null) _handleException(_NAME + " ERROR leyendo respuesta del servidor OAuth (" + clientId + "): " + String.valueOf(response));
+
+                reader = new BufferedReader(new InputStreamReader(entity.getContent(), Constantes.UTF_8));
+                final JSONObject jsonResponse = _getParsedObjectByReader(reader);
+
+                _handleException(_NAME + "ERROR borrando el cliente (" + clientId + ") Response :" + jsonResponse.toJSONString());
+            }
+        }
+        catch (ParseException e) {_handleException(_NAME + " ERROR parseando la respuesta JSON (" + clientId + ")!!", e);}
+        catch (IOException e)    {_handleException(_NAME + " ERROR recuperando info de la aplicacion" + clientId + "!!", e);}
+        finally
+        {
+            _closeResources(reader, httpClient);
+        }
+    }
+
+    /**
+     * Deletes mapping records of oAuth applications.
+     *
+     * @param clientId
+     * @throws APIManagementException
+     */
+    @Override
+    public void deleteMappedApplication(final String clientId) throws APIManagementException {
+        log.error(_NAME + ".deleteMappedApplication(" + clientId + ")");
+    }
+
+
+
+
+
+
+
+
+
+    /**
+     * Gets new access token and returns it in an AccessTokenInfo object.
+     *
+     * @param atr Info of the token needed.
+     * @return AccessTokenInfo Info of the new token.
+     * @throws APIManagementException This is the custom exception class for API management.
+     */
+    @Override
+    public AccessTokenInfo getNewApplicationAccessToken(final AccessTokenRequest atr) throws APIManagementException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-    @Override
-    public AccessTokenInfo getNewApplicationAccessToken(AccessTokenRequest atr) throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
+
+
+
+
 
     @Override
     public String getNewApplicationConsumerSecret(AccessTokenRequest atr) throws APIManagementException {
@@ -672,11 +739,6 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
 
     @Override
     public void deleteRegisteredResourceByAPIId(String string) throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void deleteMappedApplication(String string) throws APIManagementException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 

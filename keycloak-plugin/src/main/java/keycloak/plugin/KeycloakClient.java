@@ -23,6 +23,7 @@ import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -52,6 +53,24 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
     /*-------------------------------------------------------------------------*/
     /*                Metodos privados                                         */
     /*-------------------------------------------------------------------------*/
+    /**
+     *
+     * @param inicial
+     * @param result
+     */
+    private void _inicia(final OAuthApplicationInfo inicial, final OAuthApplicationInfo result) {
+        if (inicial == null) return;
+
+        result.addParameter(Constantes.WSO2APIM.CLIENT_ID_ISSUED_AT,               inicial.getParameter(Constantes.WSO2APIM.CLIENT_ID_ISSUED_AT));
+        result.addParameter(Constantes.WSO2APIM.CLIENT_URI,                        inicial.getParameter(Constantes.WSO2APIM.CLIENT_URI));
+        result.addParameter(Constantes.WSO2APIM.CLIENT_LOGO_URI,                   inicial.getParameter(Constantes.WSO2APIM.CLIENT_LOGO_URI));
+        result.addParameter(Constantes.WSO2APIM.CLIENT_APPLICATION_TYPE,           inicial.getParameter(Constantes.WSO2APIM.CLIENT_APPLICATION_TYPE));
+        result.addParameter(Constantes.WSO2APIM.CLIENT_POST_LOGOUT_REDIRECT_URIS,  inicial.getParameter(Constantes.WSO2APIM.CLIENT_POST_LOGOUT_REDIRECT_URIS));
+        result.addParameter(Constantes.WSO2APIM.CLIENT_RESPONSE_TYPES,             inicial.getParameter(Constantes.WSO2APIM.CLIENT_RESPONSE_TYPES));
+        result.addParameter(Constantes.WSO2APIM.CLIENT_TOKEN_ENDPOINT_AUTH_METHOD, inicial.getParameter(Constantes.WSO2APIM.CLIENT_TOKEN_ENDPOINT_AUTH_METHOD));
+        result.addParameter(Constantes.WSO2APIM.CLIENT_INITIATE_LOGIN_URI,         inicial.getParameter(Constantes.WSO2APIM.CLIENT_INITIATE_LOGIN_URI));
+    }
+
     private String _getAuthorization() throws APIManagementException {
         final StringBuilder result = new StringBuilder();
         BufferedReader      reader = null;
@@ -207,22 +226,28 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
      * @param x Mapa con los atributos devueltos por Keycloak
      * @return
      */
-    private OAuthApplicationInfo _createOAuthAppInfoFromResponse(final Map x) {
+    private OAuthApplicationInfo _createOAuthAppInfoFromResponse(final Map x, final OAuthApplicationInfo inicial) {
         final OAuthApplicationInfo result   = new OAuthApplicationInfo();
         final String               clientId = (String) x.get(Constantes.KEYCLOAK.OIDC_CLIENT_ID);
 
         log.error(_NAME + "._createOAuthAppInfoFromResponse(" + x + ")");
 
-        result.setClientName  (clientId);
+        //1.- Inicia el objeto a los valores previos
+        if (inicial != null) _inicia(inicial, result);
+
+        //2.- Client id and secret
         result.setClientId    (clientId);
+        result.setClientName  ((String) x.get(Constantes.KEYCLOAK.OIDC_CLIENT_NAME));
         result.setClientSecret((String) x.get(Constantes.KEYCLOAK.OIDC_CLIENT_SECRET));
 
+        //3.- Redirect URIs
         final JSONArray callbackUrl = (JSONArray) x.get(Constantes.KEYCLOAK.OIDC_REDIRECT_URIS);
         if (callbackUrl != null)
         {
             result.setCallBackURL((String) callbackUrl.toArray()[0]);
         }
 
+        //4.- Grant types
         final JSONArray grantTypes = (JSONArray) x.get(Constantes.KEYCLOAK.OIDC_GRANT_TYPES);
         final StringBuilder gt = new StringBuilder();
         for (Object type : grantTypes)
@@ -231,15 +256,11 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
         }
         result.addParameter(Constantes.WSO2APIM.CLIENT_GRANT_TYPES, gt.toString());
 
-        //result.addParameter(Constantes.WSO2APIM.CLIENT_ID_ISSUED_AT,               x.get(Constantes.KEYCLOAK.CLIENT_ID_ISSUED_AT));
+        //5.- Other parameters
         result.addParameter(Constantes.WSO2APIM.CLIENT_SECRET_EXPIRES_AT,          x.get(Constantes.KEYCLOAK.OIDC_CLIENT_SECRET_EXPIRES_AT));
-        //result.addParameter(Constantes.WSO2APIM.CLIENT_URI,                        x.get(Constantes.KEYCLOAK.CLIENT_URI));
-        //result.addParameter(Constantes.WSO2APIM.CLIENT_LOGO_URI,                   x.get(Constantes.KEYCLOAK.CLIENT_LOGO_URI));
-        //result.addParameter(Constantes.WSO2APIM.CLIENT_APPLICATION_TYPE,           x.get(Constantes.KEYCLOAK.CLIENT_APPLICATION_TYPE));
-        //result.addParameter(Constantes.WSO2APIM.CLIENT_POST_LOGOUT_REDIRECT_URIS,  x.get(Constantes.KEYCLOAK.CLIENT_POST_LOGOUT_REDIRECT_URIS));
         result.addParameter(Constantes.WSO2APIM.CLIENT_TOKEN_ENDPOINT_AUTH_METHOD, x.get(Constantes.KEYCLOAK.OIDC_TOKEN_ENDPOINT_AUTH_METHOD));
-        //result.addParameter(Constantes.WSO2APIM.CLIENT_INITIATE_LOGIN_URI,         x.get(Constantes.KEYCLOAK.CLIENT_INITIATE_LOGIN_URI));
 
+        //6.- Fin
         return result;
     }
 
@@ -250,7 +271,7 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
      * @return
      * @throws APIManagementException
      */
-    private String _createJsonPayloadFromOauthApplication(OAuthApplicationInfo oAuthApplicationInfo) throws APIManagementException {
+    private String _createJsonPayloadFromOauthApplicationOld(OAuthApplicationInfo oAuthApplicationInfo) throws APIManagementException {
         final Map<String, Object> result = new HashMap<String, Object>();
 
         //Client Name
@@ -265,23 +286,58 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
             result.put(Constantes.KEYCLOAK.REDIRECT_URIS, redirectUris);
         }
 
+        return JSONObject.toJSONString(result);
+    }
+
+    /**
+     * Crea la petición a Keycloak a partir de la info recibida en el objeto OAuthApplicationInfo
+     *
+     * @param oAuthApplicationInfo
+     * @return
+     * @throws APIManagementException
+     */
+    private String _createJsonPayloadFromOauthApplication(OAuthApplicationInfo oAuthApplicationInfo) throws APIManagementException {
+        final Map<String, Object> result = new HashMap<String, Object>();
+
+        //Client Name
+        final String client_id = oAuthApplicationInfo.getClientId();
+        if (StringUtils.isNotEmpty(client_id)) result.put(Constantes.KEYCLOAK.OIDC_CLIENT_ID, client_id);
+
+        //Client Name
+        final String client_name = oAuthApplicationInfo.getClientName();
+        if (StringUtils.isNotEmpty(client_name)) result.put(Constantes.KEYCLOAK.OIDC_CLIENT_NAME, client_name);
+
+        //Client Secret
+        final String client_secret = oAuthApplicationInfo.getClientSecret();
+        if (StringUtils.isNotEmpty(client_name)) result.put(Constantes.KEYCLOAK.OIDC_CLIENT_SECRET, client_secret);
+
+        //Redirect URIs
+        final String clientRedirectUri = oAuthApplicationInfo.getCallBackURL();
+        if (StringUtils.isNotEmpty(clientRedirectUri))
+        {
+            final List<String> redirect_uris = Collections.singletonList(clientRedirectUri);
+            result.put(Constantes.KEYCLOAK.OIDC_REDIRECT_URIS, redirect_uris);
+        }
+
         //Response Types
-//        final Object clientResponseTypes = oAuthApplicationInfo.getParameter(Constantes.CLIENT_RESPONSE_TYPES);
-//        if (clientResponseTypes != null)
-//        {
-//            final String[]  responseTypes = ((String) clientResponseTypes).split(",");
-//            final JSONArray jsonArray     = new JSONArray();
-//            Collections.addAll(jsonArray, responseTypes);
-//        }
+        final Object clientResponseTypes = oAuthApplicationInfo.getParameter(Constantes.WSO2APIM.CLIENT_RESPONSE_TYPES);
+        if (clientResponseTypes != null)
+        {
+            final String[]  responseTypes = ((String) clientResponseTypes).split(",");
+            final JSONArray jsonArray     = new JSONArray();
+            Collections.addAll(jsonArray, responseTypes);
+            result.put(Constantes.KEYCLOAK.OIDC_RESPONSE_TYPES, jsonArray);
+        }
 
         //Grant Types
-//        final Object clientGrantTypes = oAuthApplicationInfo.getParameter(Constantes.CLIENT_GRANT_TYPES);
-//        if (clientGrantTypes != null)
-//        {
-//            final String[]  grantTypes = ((String) clientGrantTypes).split(",");
-//            final JSONArray jsonArray  = new JSONArray();
-//            Collections.addAll(jsonArray, grantTypes);
-//        }
+        final Object clientGrantTypes = oAuthApplicationInfo.getParameter(Constantes.WSO2APIM.CLIENT_GRANT_TYPES);
+        if (clientGrantTypes != null)
+        {
+            final String[]  grantTypes = ((String) clientGrantTypes).split(",");
+            final JSONArray jsonArray  = new JSONArray();
+            Collections.addAll(jsonArray, grantTypes);
+            result.put(Constantes.KEYCLOAK.OIDC_GRANT_TYPES, jsonArray);
+        }
 
         // Logout Redirect URI
 //        final Object clientPostLogoutRedirectUris = oAuthApplicationInfo.getParameter(Constantes.CLIENT_POST_LOGOUT_REDIRECT_URIS);
@@ -340,7 +396,7 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
 
         try
         {
-            final String   payload = _createJsonPayloadFromOauthApplication(oAuthApplicationInfo);
+            final String   payload = _createJsonPayloadFromOauthApplicationOld(oAuthApplicationInfo);
             final HttpPost post    = new HttpPost(registrationEndpoint);
 
             post.setEntity(new StringEntity(payload, Constantes.UTF_8));
@@ -427,12 +483,11 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
 
         log.error(_NAME + ".retrieveApplication(" + clientId + ")");
 
-        final String              clientInfoEndpoint = Constantes.Properties2.CLIENT_INFO_ENDPOINT;
-        final CloseableHttpClient httpClient         = HttpClientBuilder.create().build();
+        final CloseableHttpClient httpClient = HttpClientBuilder.create().build();
 
         try
         {
-            final HttpGet request = new HttpGet(clientInfoEndpoint + Constantes.URL_SEPARATOR + clientId);
+            final HttpGet request = new HttpGet(Constantes.Properties2.CLIENT_INFO_ENDPOINT + Constantes.URL_SEPARATOR + clientId);
 
             request.addHeader(Constantes.HTTP_HEADER_AUTH, _getAuthorization());
 
@@ -459,7 +514,7 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
 
             if (statusCode == HttpStatus.SC_OK)
             {
-                return _createOAuthAppInfoFromResponse(jsonResponse);
+                return _createOAuthAppInfoFromResponse(jsonResponse, null);
             }
             else
             {
@@ -492,12 +547,78 @@ public class KeycloakClient extends org.wso2.carbon.apimgt.impl.AbstractKeyManag
         return null;
     }
 
-
-
+    /**
+     * Updates an OAuth application.
+     *
+     * @param req
+     * @return
+     * @throws APIManagementException
+     */
     @Override
-    public OAuthApplicationInfo updateApplication(OAuthAppRequest oaar) throws APIManagementException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    public OAuthApplicationInfo updateApplication(final OAuthAppRequest req) throws APIManagementException {
+        BufferedReader reader = null;
+
+        log.error(_NAME + ".updateApplication()");
+
+        final OAuthApplicationInfo oAuthApplicationInfo = req.getOAuthApplicationInfo();
+        final CloseableHttpClient  httpClient           = HttpClientBuilder.create().build();
+        final String               clientId             = oAuthApplicationInfo.getClientId();
+
+        log.error(_NAME + ".updateApplication: " + Constantes.view(oAuthApplicationInfo));
+
+        try
+        {
+            final String  payload = _createJsonPayloadFromOauthApplication(oAuthApplicationInfo);
+            final HttpPut put     = new HttpPut(Constantes.Properties2.CLIENT_PUT_ENDPOINT + Constantes.URL_SEPARATOR + clientId);
+
+            put.setEntity(new StringEntity(payload, Constantes.UTF_8));
+
+            put.setHeader(Constantes.HTTP_HEADER_CONTENT_TYPE, Constantes.HTTP_HEADER_CT_APPLICATION_JSON);
+            put.setHeader(Constantes.HTTP_HEADER_AUTH,         _getAuthorization());
+
+            final HttpResponse response   = httpClient.execute(put);
+            final HttpEntity   entity     = response.getEntity();
+            int                statusCode = response.getStatusLine().getStatusCode();
+
+            log.error(_NAME + " response: " + response.toString());
+
+            if (entity == null)
+            {
+                _handleException(_NAME + " ERROR leyendo respuesta del servidor OAuth (" + clientId + "): " + String.valueOf(response));
+            }
+
+            reader = new BufferedReader(new InputStreamReader(entity.getContent(), Constantes.UTF_8));
+
+            final JSONObject jsonResponse = _getParsedObjectByReader(reader);
+            if (jsonResponse == null)
+            {
+                _handleException(_NAME + " ERROR parseando la respuesta JSON!!");
+            }
+
+            log.error(_NAME + " jsonResponse: " + jsonResponse.toJSONString());
+
+            if (statusCode == HttpStatus.SC_OK)
+            {
+                return _createOAuthAppInfoFromResponse(jsonResponse, oAuthApplicationInfo);
+            }
+            else
+            {
+                _handleException(String.format("Error occured while retrieving client for the Consumer Key %s", clientId));
+            }
+        }
+        catch (ParseException e) {_handleException(_NAME + " ERROR parseando la respuesta JSON (" + clientId + ")!!", e);}
+        catch (IOException e)    {_handleException(_NAME + " ERROR recuperando info de la aplicacion" + clientId + "!!", e);}
+        finally
+        {
+            _closeResources(reader, httpClient);
+        }
+
+        return null;
     }
+
+
+
+
 
     @Override
     public void deleteApplication(String string) throws APIManagementException {

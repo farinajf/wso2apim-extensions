@@ -5,6 +5,8 @@
  */
 package keycloak.plugin;
 
+import org.wso2.carbon.apimgt.api.model.OAuthApplicationInfo;
+
 /**
  *
  * @author fran
@@ -30,6 +32,7 @@ public final class Constantes {
         public static final String REDIRECT_URIS                   = "redirectUris";
 
         public static final String OIDC_CLIENT_ID                  = "client_id";
+        public static final String OIDC_CLIENT_NAME                = "client_name";
         public static final String OIDC_CLIENT_SECRET              = "client_secret";
         public static final String OIDC_CLIENT_SECRET_EXPIRES_AT   = "client_secret_expires_at";
         public static final String OIDC_GRANT_TYPES                = "grant_types";
@@ -77,5 +80,20 @@ public final class Constantes {
         public static final String PASSWORD              = "password";
         public static final String CLIENT_REG_ENDPOINT   = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/default";
         public static final String CLIENT_INFO_ENDPOINT  = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/openid-connect";
+        public static final String CLIENT_PUT_ENDPOINT   = "https://idp.keycloak.local:8443/auth/realms/master/clients-registrations/openid-connect";
+    }
+
+    public static final String view(final OAuthApplicationInfo x) {
+        final StringBuilder result = new StringBuilder();
+
+        result.append("CLIENT_ID:").append(x.getClientId()).append('|');
+        result.append("CLIENT_NAME:").append(x.getClientName()).append('|');
+        result.append("CLIENT_SECRET:").append(x.getClientSecret()).append('|');
+        result.append("CALLBACK_URLS:").append(x.getCallBackURL()).append('|');
+        result.append("TOKEN_TYPE:").append(x.getTokenType()).append('|');
+        result.append("JSON_APP_ATRIBUTE:").append(x.getJsonAppAttribute()).append('|');
+        result.append("JSON_STIRNG:").append(x.getJsonString()).append('|');
+
+        return result.toString();
     }
 }
